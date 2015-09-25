@@ -30,6 +30,8 @@ def parse_args():
               Each must begin with "@". Be careful to not specify a channel!')
     parser.add_argument('--slack_botname', type=str, default='CloudMonitorBot',
         help='The name used by the slack bot')
+    parser.add_argument('--debug', action='store_true', default=False,
+        help='Enable debug logging')
 
     try:
         if len(config.items("Defaults")) > 0:
@@ -55,7 +57,10 @@ def parse_args():
     return args
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     args = parse_args()
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
     mon = StreamMonitor(args.access_token, args.device_ids,
         slack_token=args.slack_token, slack_users=args.slack_users,
         slack_botname=args.slack_botname)

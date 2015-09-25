@@ -3,6 +3,7 @@ import json
 from WebsocketMonitor import WebsocketMonitor
 import logging
 from slacker import Slacker
+from time import time
 
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ class StreamMonitor():
                 logger.info('Device %s unstable', self.device_ids[device_id])
             elif pkt['state'] == 2:
                 logger.info('Device %s online', self.device_ids[device_id])
-            if self.slack is not None:
+            # Do not report any messages recieved within first 2 seconds
+            if self.slack is not None and (time() - self.connect_time) > 2.0:
                 for user in self.slack_users:
                     if pkt['state'] == 0:
                         self.slack.chat.post_message(user,
@@ -58,6 +60,17 @@ class StreamMonitor():
             for device_id in self.device_ids:
                 msg = '{"name":"subscribe", "args":{"device_id":"%s"}}' % device_id
                 self.conn.ws.send(msg)
+        # Do not report any messages recieved within first 2 seconds
+        if self.slack is not None and (time() - self.connect_time) > 2.0:
+            for user in self.slack_users:
+                if connected:
+                    self.slack.chat.post_message(user,
+                    'Regained connection to API server',
+                    self.slack_botname)
+                else:
+                    self.slack.chat.post_message(user,
+                    'Lost connection to API server',
+                    self.slack_botname)
 
     def __init__(self, access_token, device_ids, slack_token=None,
             slack_users=None, slack_botname='StreamMonitor'):
@@ -77,16 +90,15 @@ class StreamMonitor():
             self.slack_users = []
         self.slack_botname = slack_botname
         self.connected = False
+        self.connect_time = time()
         self.msgcount = {}
         self.access_token = access_token
         self.conn = WebsocketMonitor(self.access_token,
                 on_message=self.on_message, on_state_change=self.on_state_change)
 
     def connect(self):
+        self.connect_time = time()
         self.conn.connect()
 
     def disconnect(self):
         self.conn.disconnect()
-
-
-logging.basicConfig(level=logging.INFO)

@@ -75,4 +75,3 @@ class WebsocketMonitor(threading.Thread):
 
 #websocket.enableTrace(True)
 #self.SUBSCRIBEMSG = '{"name":"subscribe", "args":{"device_id":"%s"}}' % self.device_id
-
