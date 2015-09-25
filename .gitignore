@@ -1,2 +1,5 @@
 *.pyc
 *.cfg
+build/
+dist/
+python_cloud_monitor.egg-info/
