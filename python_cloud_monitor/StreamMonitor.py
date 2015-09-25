@@ -12,28 +12,37 @@ last = None
 class StreamMonitor():
 
     def parse_pkt(self, device_id, pkt):
+        try:
+            if device_id in self.last_device_info:
+                device_name = self.last_device_info[device_id]['device']['settings']['label']
+            else:
+                device_name = device_id
+        except KeyError:
+            device_name = device_id
         if pkt['type'] == 'connection_change':
             if pkt['state'] == 0:
-                logger.info('Device %s offline', self.device_ids[device_id])
+                logger.info('Device %s offline', device_name)
             elif pkt['state'] == 1:
-                logger.info('Device %s unstable', self.device_ids[device_id])
+                logger.info('Device %s unstable', device_name)
             elif pkt['state'] == 2:
-                logger.info('Device %s online', self.device_ids[device_id])
+                logger.info('Device %s online', device_name)
             # Do not report any messages recieved within first 2 seconds
             if self.slack is not None and (time() - self.connect_time) > 2.0:
                 for user in self.slack_users:
                     if pkt['state'] == 0:
                         self.slack.chat.post_message(user,
-                        '[%s] I just went offline' % self.device_ids[device_id],
+                        '[%s] I just went offline' % device_name,
                         self.slack_botname)
                     elif pkt['state'] == 1:
                         self.slack.chat.post_message(user,
-                        '[%s] My connection is unstable' % self.device_ids[device_id],
+                        '[%s] My connection is unstable' % device_name,
                         self.slack_botname)
                     elif pkt['state'] == 2:
                         self.slack.chat.post_message(user,
-                        '[%s] I came online' % self.device_ids[device_id],
+                        '[%s] I came online' % device_name,
                         self.slack_botname)
+        elif 'from' in pkt:
+            self.last_device_info[device_id] = pkt['from']
         else:
             if not device_id in self.msgcount:
                 self.msgcount[device_id] = 1
@@ -45,10 +54,9 @@ class StreamMonitor():
         while not isinstance(pkt, dict):
             pkt = json.loads(pkt)
         try:
-            for i in range(len(self.device_ids)):
-                device_id = self.device_ids[i]
+            for device_id in self.device_ids:
                 if pkt['from']['device']['id'] == device_id:
-                    self.parse_pkt(i, pkt)
+                    self.parse_pkt(device_id, pkt)
         except KeyError, TypeError:
             logger.error('Message malformed: %s', pkt)
 
@@ -92,6 +100,7 @@ class StreamMonitor():
         self.connected = False
         self.connect_time = time()
         self.msgcount = {}
+        self.last_device_info = {}
         self.access_token = access_token
         self.conn = WebsocketMonitor(self.access_token,
                 on_message=self.on_message, on_state_change=self.on_state_change)

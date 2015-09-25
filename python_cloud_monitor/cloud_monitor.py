@@ -57,10 +57,11 @@ def parse_args():
     return args
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     args = parse_args()
     if args.debug:
-        logger.setLevel(logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
     mon = StreamMonitor(args.access_token, args.device_ids,
         slack_token=args.slack_token, slack_users=args.slack_users,
         slack_botname=args.slack_botname)
