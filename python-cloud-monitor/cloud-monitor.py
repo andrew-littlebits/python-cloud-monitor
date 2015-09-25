@@ -1,15 +1,17 @@
+#!/usr/bin/env python
+
 import argparse
 import ConfigParser
 from StreamMonitor import StreamMonitor
 from sys import exit
-from os.path import exists
+from os.path import exists, expanduser
 import logging
 from time import sleep
 
 
 logger = logging.getLogger(__name__)
-DEFAULT_CFG_PATHS = ['./cloud_monitor_credentials.cfg',
-                 '~/.cloud_monitor_credentials.cfg']
+DEFAULT_CFG_PATHS = [expanduser('~/.cloud_monitor_credentials.cfg'),
+                     './cloud_monitor_credentials.cfg']
 
 def parse_args():
     config = ConfigParser.SafeConfigParser()
@@ -17,16 +19,6 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description=\
         'Monitor cloud bits using streaming API and notify via Slack')
-
-    try:
-        if len(config.items("Defaults")) > 0:
-            logger.info("Loaded settings from a config file: %s" % DEFAULT_CFG_PATHS)
-        defaults = dict(config.items("Defaults"))
-        parser.set_defaults(**defaults)
-    except ConfigParser.NoSectionError:
-        logger.warn("Unable to find 'Defaults' section in config file %s",
-            DEFAULT_CFG_PATHS)
-
     parser.add_argument('--access_token', type=str, default=None,
         help='The littleBits access token for the bits to be monitored')
     parser.add_argument('--device_ids', nargs='+', type=str, default=[],
@@ -38,6 +30,20 @@ def parse_args():
               Each must begin with "@". Be careful to not specify a channel!')
     parser.add_argument('--slack_botname', type=str, default='CloudMonitorBot',
         help='The name used by the slack bot')
+
+    try:
+        if len(config.items("Defaults")) > 0:
+            logger.info("Loaded settings from a config file: %s" % DEFAULT_CFG_PATHS)
+        defaults = dict(config.items("Defaults"))
+        if 'device_ids' in defaults and defaults['device_ids'].find(',') > 0:
+            defaults['device_ids'] = defaults['device_ids'].split(',')
+        if 'slack_users' in defaults and defaults['slack_users'].find(',') > 0:
+            defaults['slack_users'] = defaults['slack_users'].split(',')
+        parser.set_defaults(**defaults)
+    except ConfigParser.NoSectionError:
+        logger.warn("Unable to find 'Defaults' section in config file %s",
+            DEFAULT_CFG_PATHS)
+
     args = parser.parse_args()
 
     if args.access_token is None:
